@@ -1,5 +1,7 @@
 # Patient Intake QA Demo
 
+Live demo: https://selenium-pytest.brycemiranda.dev
+
 A small Selenium + pytest suite against a fictional clinic's patient-intake app, with switchable bugs to show each test catches the defect it claims to.
 
 > Fictional clinic (Larkspur Hollow Clinic). Fake data only. No real patient information.
