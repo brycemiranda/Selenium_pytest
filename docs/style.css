@@ -1,0 +1,12 @@
+[hidden] { display: none !important; }
+body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1d2733; }
+header h1 { margin-bottom: 0.2rem; color: #1f5f7a; }
+.banner { background: #fff4d6; border: 1px solid #e8c766; padding: 0.4rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
+section { border: 1px solid #d5dde5; border-radius: 8px; padding: 1rem 1.2rem; margin-top: 1.2rem; }
+form label { display: block; margin: 0.6rem 0; }
+form input { display: block; width: 100%; padding: 0.45rem; margin-top: 0.2rem; box-sizing: border-box; }
+button { margin-top: 0.6rem; padding: 0.5rem 1rem; background: #1f5f7a; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+.error { color: #b42318; font-weight: 600; }
+.hint { color: #5b6b7a; font-size: 0.9rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.4rem; border-bottom: 1px solid #e3e8ee; }

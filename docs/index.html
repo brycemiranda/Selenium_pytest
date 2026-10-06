@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Larkspur Hollow Clinic — Patient Intake (Demo)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Larkspur Hollow Clinic</h1>
+    <p class="banner">Fictional demo app. Fake data only.</p>
+  </header>
+
+  <section class="bug-panel">
+    <h2>Bug toggles (for test demos)</h2>
+    <label><input type="checkbox" data-test-id="bug-allergy"> Allergies silently dropped on save</label>
+    <label><input type="checkbox" data-test-id="bug-dob"> Future date of birth accepted</label>
+  </section>
+
+  <section id="login-section">
+    <h2>Sign in</h2>
+    <p class="hint">Demo credentials: <code>demo</code> / <code>demo</code></p>
+    <form id="login-form">
+      <label>Username <input type="text" data-test-id="login-username"></label>
+      <label>Password <input type="password" data-test-id="login-password"></label>
+      <button type="submit" data-test-id="login-submit">Sign in</button>
+      <p class="error" data-test-id="login-error" hidden>Invalid username or password.</p>
+    </form>
+  </section>
+	  <section id="intake-section" hidden>
+    <h2>New patient intake</h2>
+    <form id="intake-form">
+      <label>Full name <input type="text" data-test-id="intake-name"></label>
+      <label>Date of birth <input type="text" placeholder="YYYY-MM-DD" data-test-id="intake-dob"></label>
+      <label>Allergies <input type="text" data-test-id="intake-allergies"></label>
+      <label>Current medication <input type="text" data-test-id="intake-medication"></label>
+      <button type="submit" data-test-id="intake-save">Save patient</button>
+      <p class="error" data-test-id="intake-error" hidden></p>
+    </form>
+  </section>
+
+  <section id="list-section" hidden>
+    <h2>Patients</h2>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>DOB</th><th>Allergies</th><th>Medication</th></tr>
+      </thead>
+      <tbody data-test-id="patient-rows"></tbody>
+    </table>
+  </section>
+  <script src="app.js"></script>
+</body>
+</html>
