@@ -19,9 +19,3 @@ class LoginPage(BasePage):
 
     def error_text(self):
         return self.visible(self.ERROR, "login error message never appeared").text
-
-from pages.login_page import LoginPage
-def test_invalid_login_shows_error(driver, base_url):
-    page = LoginPage(driver).open(base_url)
-    page.login("demo", "wrong-password")
-    assert page.error_text() == "Invalid username or password."
