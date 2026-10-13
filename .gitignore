@@ -5,3 +5,4 @@ screenshots/*.png
 .DS_Store
 report.html
 server.log
+results.xml

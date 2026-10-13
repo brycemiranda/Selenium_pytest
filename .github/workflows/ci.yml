@@ -10,8 +10,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bugs: ["", "allergy", "dob"]
-    name: test (${{ matrix.bugs || 'clean' }})
+        include:
+          - bugs: ""
+            expect_fail: ""
+          - bugs: allergy
+            expect_fail: test_allergies_preserved_after_save
+          - bugs: dob
+            expect_fail: test_future_dob_is_rejected
+      - name: Run tests
+        continue-on-error: true
+        run: pytest -v --bugs=${{ matrix.bugs }} --junitxml=results.xml --html=report.html --self-contained-html
+
+      - name: Check the right tests failed
+        run: python ci/check_results.py results.xml "${{ matrix.expect_fail }}"
     steps:
       - uses: actions/checkout@v7
 
