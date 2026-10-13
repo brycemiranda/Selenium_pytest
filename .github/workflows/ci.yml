@@ -6,6 +6,7 @@ on:
 
 jobs:
   test:
+    name: test (${{ matrix.bugs || 'clean' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -17,12 +18,7 @@ jobs:
             expect_fail: test_allergies_preserved_after_save
           - bugs: dob
             expect_fail: test_future_dob_is_rejected
-      - name: Run tests
-        continue-on-error: true
-        run: pytest -v --bugs=${{ matrix.bugs }} --junitxml=results.xml --html=report.html --self-contained-html
 
-      - name: Check the right tests failed
-        run: python ci/check_results.py results.xml "${{ matrix.expect_fail }}"
     steps:
       - uses: actions/checkout@v7
 
@@ -40,4 +36,8 @@ jobs:
         run: curl --retry 10 --retry-delay 1 --retry-connrefused -sf http://localhost:8001 > /dev/null
 
       - name: Run tests
-        run: pytest -v --bugs=${{ matrix.bugs }} --html=report.html --self-contained-html
+        continue-on-error: true
+        run: pytest -v --bugs=${{ matrix.bugs }} --junitxml=results.xml --html=report.html --self-contained-html
+
+      - name: Check the right tests failed
+        run: python ci/check_results.py results.xml "${{ matrix.expect_fail }}"
