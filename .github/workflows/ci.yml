@@ -7,6 +7,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bugs: ["", "allergy", "dob"]
+    name: test (${{ matrix.bugs || 'clean' }})
     steps:
       - uses: actions/checkout@v7
 
@@ -24,4 +29,4 @@ jobs:
         run: curl --retry 10 --retry-delay 1 --retry-connrefused -sf http://localhost:8001 > /dev/null
 
       - name: Run tests
-        run: pytest -v --html=report.html --self-contained-html
+        run: pytest -v --bugs=${{ matrix.bugs }} --html=report.html --self-contained-html
