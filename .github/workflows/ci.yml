@@ -1,0 +1,27 @@
+name: Selenium tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start the app
+        run: python -m http.server 8001 --directory docs > server.log 2>&1 &
+
+      - name: Wait for the app
+        run: curl --retry 10 --retry-delay 1 --retry-connrefused -sf http://localhost:8001 > /dev/null
+
+      - name: Run tests
+        run: pytest -v --html=report.html --self-contained-html
