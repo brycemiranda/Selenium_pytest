@@ -1,5 +1,7 @@
 # Patient Intake QA Demo
 
+[![CI](https://github.com/brycemiranda/Selenium_pytest/actions/workflows/ci.yml/badge.svg)](https://github.com/brycemiranda/Selenium_pytest/actions/workflows/ci.yml)
+
 Live demo: https://selenium-pytest.brycemiranda.dev
 
 A small Selenium + pytest suite against a fictional clinic's patient-intake app, with switchable bugs to show each test catches the defect it claims to.
