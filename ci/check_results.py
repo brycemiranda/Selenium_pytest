@@ -2,7 +2,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 results_file = sys.argv[1]
-expected = {sys.argv[2]} if sys.argv[2] else set()
+expected = {name for name in sys.argv[2].split(",") if name}
 
 failed, skipped, passed = set(), set(), set()
 for case in ET.parse(results_file).iter("testcase"):

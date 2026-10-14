@@ -15,9 +15,9 @@ jobs:
           - bugs: ""
             expect_fail: ""
           - bugs: allergy
-            expect_fail: test_allergies_preserved_after_save
+            expect_fail: "test_allergies_preserved_after_save,test_pw_allergies_preserved_after_save[chromium]"
           - bugs: dob
-            expect_fail: test_future_dob_is_rejected
+            expect_fail: "test_future_dob_is_rejected,test_pw_future_dob_is_rejected[chromium]"
 
     steps:
       - uses: actions/checkout@v7
@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Install Playwright's browser
+        run: python -m playwright install --with-deps chromium
+
       - name: Start the app
         run: python -m http.server 8001 --directory docs > server.log 2>&1 &
 
@@ -37,7 +40,7 @@ jobs:
 
       - name: Run tests
         continue-on-error: true
-        run: pytest -v --bugs=${{ matrix.bugs }} --junitxml=results.xml --html=report.html --self-contained-html
+        run: pytest -v --bugs=${{ matrix.bugs }} --junitxml=results.xml --html=report.html --self-contained-html --tracing=retain-on-failure
 
       - name: Check the right tests failed
         run: python ci/check_results.py results.xml "${{ matrix.expect_fail }}"
@@ -52,4 +55,5 @@ jobs:
             results.xml
             server.log
             screenshots/
+            test-results/
           if-no-files-found: warn

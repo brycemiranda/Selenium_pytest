@@ -119,21 +119,23 @@ browser Playwright doesn't drive, such as branded Safari (Playwright uses its ow
 
 ## CI
 
-Every push and pull request runs the suite headless in Chrome on GitHub Actions
-(`.github/workflows/ci.yml`), as a 3-job matrix:
+Every push and pull request runs both suites headless on GitHub Actions
+(`.github/workflows/ci.yml`): Selenium in Chrome, Playwright in its own Chromium. It runs as a
+3-job matrix:
 
 | Job | Bugs on | Passes only if |
 |---|---|---|
-| `test (clean)` | none | all 5 tests pass |
-| `test (allergy)` | `allergy` | exactly `test_allergies_preserved_after_save` fails |
-| `test (dob)` | `dob` | exactly `test_future_dob_is_rejected` fails |
+| `test (clean)` | none | all 7 tests pass |
+| `test (allergy)` | `allergy` | exactly the two allergy tests fail: `test_allergies_preserved_after_save` and `test_pw_allergies_preserved_after_save[chromium]` |
+| `test (dob)` | `dob` | exactly the two DOB tests fail: `test_future_dob_is_rejected` and `test_pw_future_dob_is_rejected[chromium]` |
 
 pytest writes JUnit XML, and `ci/check_results.py` compares the set of failed tests with the
 expected set. Any extra failure, any missing failure, a skipped test, or zero passes turns the
 job red. So a green bug job means the suite caught *that* bug, not that "something broke".
 
 Each job uploads an artifact (`results-clean` / `-allergy` / `-dob`) with the pytest-html
-report, the JUnit XML, the app server log, and failure screenshots.
+report, the JUnit XML, the app server log, failure screenshots, and a Playwright trace for each
+failed Playwright test (`test-results/`).
 
 ## Project notes
 
