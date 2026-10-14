@@ -630,3 +630,29 @@ playwright-cli -s=mobile --raw eval "...scrollWidth vs innerWidth, elements past
 #   {vw:393, docW:393, overflowing:[], scripts:0, externalCss:0}
 playwright-cli -s=mobile screenshot '#pipeline' --filename=pipeline.png   # pipeline wraps into rows, readable
 ```
+
+---
+
+## Phase 7: README and pull request
+
+- README: "Claude Code orchestration demo" section right after "Try it" (link, one sentence, the credit line).
+- Before opening the PR:
+
+```bash
+git diff --stat main...HEAD -- tests requirements.txt .gitignore .github/workflows/ci.yml ci pytest.ini api docs/index.html docs/app.js docs/style.css   # empty
+git diff main...HEAD -- . ':!docs/e2e-report' | grep -iE '^\+.*(gho_|ghp_|ATATT|api[_-]?token|password\s*=|secret|bearer )'
+#   only two hits: this log's own scan command, and the public demo/demo default in fixtures.ts
+```
+
+(`pytest.ini` is on the brief's do-not-modify list but doesn't exist in the repo.)
+
+```bash
+git push origin orchestration-demo
+gh pr create --base main --head orchestration-demo --title "Claude Code orchestration demo: Jira → Playwright tests → Jira bugs → reports" --body-file pr-body.md
+#   https://github.com/brycemiranda/Selenium_pytest/pull/1
+gh pr checks 1      # test (clean) / test (allergy) / test (dob): pass, for both the push and pull_request runs (6 jobs)
+```
+
+The existing CI runs only the Python suites. The new `e2e/` suite isn't in CI; adding a clean-app-only e2e job is waiting on Bryce's decision.
+
+**CHECKPOINT 3:** waiting for Bryce to review and merge.
