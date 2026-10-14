@@ -581,3 +581,52 @@ Per test, everything matches the first record. The new tests (x = failed as expe
 0 flaky across 144 test executions.
 
 Reports regenerated with the same `PLAYWRIGHT_HTML_OUTPUT_DIR` loop: **13 MB** (clean 4.0M, allergy 4.5M, dob 4.2M), 48 trace zips; the old files were replaced. Checked with `playwright-cli -s=check` on `localhost:8765`. All six deep links used in PIQ-2/3/4 open the right test with a View Trace button, and both UTC tests show `issue: https://brycegdsc.atlassian.net/browse/PIQ-4`. The testIds for AC1/AC2 are unchanged.
+
+---
+
+## Phase 6: The demo page
+
+`docs/orchestration/index.html`: one static page, no scripts, no external CSS, inline styles using the app's palette (`#1f5f7a`, `#1d2733`, the yellow banner, 8px section cards). Sections: what this is (with the credit line, and the AC wording "drafted with Claude, then reviewed and approved by Bryce Miranda"), the pipeline, the runs, the Jira snapshot, **What the tests found** (PIQ-4), links, and **What the AI got wrong**. The last one lists both script mistakes, the EDT/EST correction, the brief's `comment-create`, #38610, and the skill/acli doc gaps.
+
+Jira snapshot:
+
+```bash
+acli jira workitem search --jql "project = PIQ ORDER BY key" --fields key,issuetype,summary,status,priority --csv   # 2026-10-14 13:19 EDT
+```
+
+Jira keys are plain text, not links, because the site is private.
+
+### Link check (local server, playwright-cli)
+
+```bash
+git push origin orchestration-demo
+playwright-cli -s=links open http://localhost:8765/orchestration/
+playwright-cli -s=links --raw eval "JSON.stringify([...new Set([...document.querySelectorAll('a[href]')].map(a=>a.href))])"    # 15 links
+playwright-cli -s=links --raw eval "(async()=>{...fetch every same-origin link, report status...})()"
+#   200 /orchestration/#found, /e2e-report/{clean,allergy,dob}/, /, /?bugs=allergy, /?bugs=dob, /?bugs=allergy,dob
+playwright-cli -s=links goto "http://localhost:8765/?bugs=..."   # + eval of bug-allergy / bug-dob .checked
+#   /                  {allergy:false, dob:false}
+#   /?bugs=allergy     {allergy:true,  dob:false}
+#   /?bugs=dob         {allergy:false, dob:true}
+#   /?bugs=allergy,dob {allergy:true,  dob:true}
+```
+
+GitHub links point at `main`, so they only resolve after the merge. I checked them on the branch instead:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}' https://github.com/.../blob/orchestration-demo/<path>   # several 503s, even with 3 s gaps
+gh api "repos/brycemiranda/Selenium_pytest/contents/<path>?ref=orchestration-demo"           # all 6 paths exist
+gh api ".../contents/docs/app.js?ref=main" --jq .content | base64 -d | sed -n 65p             # const today = new Date().toISOString().slice(0, 10);
+playwright-cli -s=links goto https://github.com/.../blob/orchestration-demo/docs/app.js      # title "Unicorn! · GitHub"
+```
+
+**Mistake (mine):** my first browser check reported those Unicorn pages (GitHub's 503 page) as "ok", because it only looked for "Not Found" in the title. Caught by reading the printed titles. After a 45 s pause, a retry with a check that rejects `Unicorn|Not Found` loaded both pages correctly. githubstatus.com reported "All Systems Operational", so these were transient errors. **Rechecking every GitHub link on `main` is part of Checkpoint 3.**
+
+### Phone layout
+
+```bash
+playwright-cli -s=mobile open --device="iPhone 15" http://localhost:8765/orchestration/
+playwright-cli -s=mobile --raw eval "...scrollWidth vs innerWidth, elements past the right edge, script count..."
+#   {vw:393, docW:393, overflowing:[], scripts:0, externalCss:0}
+playwright-cli -s=mobile screenshot '#pipeline' --filename=pipeline.png   # pipeline wraps into rows, readable
+```
