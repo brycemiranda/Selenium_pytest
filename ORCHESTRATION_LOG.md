@@ -317,3 +317,69 @@ done; done
 | seed | PPP | PPP | PPP |
 
 0 flaky across 126 test executions. That's a small sample: 3 runs from one machine against the live site.
+
+I verified the stale-text claim above before keeping it (it was based on reading `app.js`):
+
+```bash
+playwright-cli -s=stale open https://brycemiranda.github.io/Selenium_pytest/
+# log in, save "Hal Stale" with DOB 2099-01-01 (rejected), change DOB to 1990-01-01, save again (accepted)
+playwright-cli -s=stale --raw eval "JSON.stringify((e=>[e.checkVisibility(), e.textContent])(document.querySelector('[data-test-id=intake-error]')))"
+# "[false,\"Date of birth cannot be in the future.\"]"  -> hidden, old text still there
+playwright-cli -s=stale close
+```
+
+---
+
+## Phase 4: Publish the evidence
+
+```bash
+grep -rhoE 'PLAYWRIGHT_HTML_[A-Z_]+' e2e/node_modules/playwright/ | sort -u   # confirms PLAYWRIGHT_HTML_OUTPUT_DIR and PLAYWRIGHT_HTML_TITLE exist in 1.64.1
+cd e2e
+for b in clean allergy dob; do
+  BUGS=$([ $b = clean ] || echo $b) PLAYWRIGHT_HTML_OPEN=never \
+  PLAYWRIGHT_HTML_OUTPUT_DIR=../docs/e2e-report/$b PLAYWRIGHT_HTML_TITLE="PIQ-1 e2e: $b run" \
+  npx playwright test --reporter=html
+done
+du -sh docs/e2e-report docs/e2e-report/*/        # 11M total: clean 3.9M, allergy 3.8M, dob 3.7M; 42 trace zips (14 per run)
+```
+
+**Size: 11 MB committed.** Committing generated reports is a deliberate shortcut so the current Pages setup (deploy from `main` → `/docs`) keeps working with no workflow changes. **The better option:** a Pages deploy from Actions (`actions/upload-pages-artifact` + `actions/deploy-pages`) in a job that `needs:` the e2e jobs, publishing the reports as build output. Then nothing generated lives in git, and the published reports always match the commit that produced them.
+
+**What the traces contain:** traces store source locations as absolute paths. Checked before committing:
+
+```bash
+for z in docs/e2e-report/*/data/*.zip; do unzip -p "$z"; done | grep -a -o -E "/Users/brycemiranda[^\"' ]{0,80}" | sort | uniq -c
+#   only /Users/brycemiranda/patient-intake-qa/e2e/tests/*.ts and e2e/node_modules/playwright-core/... paths
+for z in docs/e2e-report/*/data/*.zip; do unzip -p "$z"; done | grep -a -i -E "gho_|ATATT|bearer |authorization|@gmail\.com|atlassian"
+#   no matches
+```
+
+So the traces expose a local directory layout, which includes the public GitHub username. No tokens or emails. Reports built in CI would show `/home/runner/...` instead.
+
+### Verified locally with playwright-cli
+
+```bash
+python3 -m http.server 8765 --directory docs      # background
+playwright-cli -s=report open http://localhost:8765/e2e-report/dob/
+playwright-cli -s=report find "AC2"
+playwright-cli -s=report --raw eval "document.querySelector('nav')?.innerText"
+playwright-cli -s=report click e56                # "View Trace" on AC2 far-future
+playwright-cli -s=report find --regex "Fill|Click|toBeVisible|Error|error"
+playwright-cli -s=report console error
+playwright-cli -s=report goto http://localhost:8765/e2e-report/clean/     # + allergy; then goto each report's first matching "View Trace" href
+playwright-cli -s=report goto "http://localhost:8765/e2e-report/dob/#?q=s:failed"   # collect testId deep links for the Jira evidence
+playwright-cli -s=report close
+```
+
+| Report | Title | Counts | Trace opened | Trace shows |
+|---|---|---|---|---|
+| clean | PIQ-1 e2e: clean run | 14 / 14 passed | AC3 today | "Set fixed time … 08:00 EDT" (= 12:00 UTC), fills, Click, `toBeHidden` |
+| allergy | PIQ-1 e2e: allergy run | 12 passed / 2 failed | AC1 Penicillin | fills incl. "Penicillin", Click, expects |
+| dob | PIQ-1 e2e: dob run | 12 passed / 2 failed | AC2 far-future | fills, Click, `toBeVisible` 5.0s (the failure), error-context attachment; 0 console errors |
+
+Deep links to the failing tests (used in the Jira bugs). These IDs are hashes of file + title, so they stay the same when the report is regenerated:
+
+- allergy: `#?testId=11a438ffe646e21df862-f3f5afc598b3521c7db2` (AC1 Penicillin), `#?testId=de0d0600ec6008df6544-cddb7d2ca40b921eb20c` (AC1 multiple)
+- dob: `#?testId=c1ee32bd21b0cb75f6cc-a29f19bb5153b331ca17` (AC2 far-future), `#?testId=65123cde7074dae2778b-bda4fbe559d127f0bbff` (AC2 tomorrow)
+
+Opening `dob/#?testId=c1ee…` showed the test page with "Error: expect(locator).toBeVisible() failed … Received: hidden" and a View Trace button. Nothing was broken, so nothing needed fixing.
