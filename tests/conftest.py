@@ -6,10 +6,9 @@ from pages.intake_page import IntakePage
 from pages.login_page import LoginPage
 
 def pytest_addoption(parser):
-    parser.addoption("--headed", action="store_true", help="Show the browser (needs a desktop).")
     parser.addoption("--bugs", default="", help="Bugs to inject into the app, e.g. allergy,dob")
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def base_url(request):
     url = os.environ.get("BASE_URL", "http://localhost:8001").rstrip("/")
     bugs = request.config.getoption("--bugs")
