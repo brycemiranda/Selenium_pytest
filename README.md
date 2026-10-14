@@ -24,7 +24,8 @@ Video walkthrough (2–3 min): coming soon
 
 - `docs/` — static app (HTML/CSS/JS): login, intake form, in-memory patient list, bug toggles
 - `tests/pages/` — Page Objects: `LoginPage`, `IntakePage`, `PatientListPage`
-- `tests/` — 5 tests, browser setup and screenshot-on-failure in `conftest.py`
+- `tests/` — 5 Selenium tests, browser setup and screenshot-on-failure in `conftest.py`
+- `tests/test_intake_playwright.py` — the allergy and DOB tests ported to Playwright, kept side by side with the Selenium versions
 
 ## Bug → test → why it matters
 
@@ -40,20 +41,22 @@ Requires Python 3.11+ and Chrome or Chromium.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+playwright install chromium   # Playwright's own browser
 
 # terminal 1: serve the app
 python -m http.server 8001 --directory docs
 
 # terminal 2: run the tests
-pytest -v                    # clean app: 5 pass
-pytest -v --bugs=allergy     # allergy test fails
-pytest -v --bugs=dob         # DOB test fails
+pytest -v                    # clean app: 7 pass
+pytest -v --bugs=allergy     # both allergy tests fail (Selenium + Playwright)
+pytest -v --bugs=dob         # both DOB tests fail (Selenium + Playwright)
 ```
 
 Options:
 - `BASE_URL=...` runs against any deployed copy (default `http://localhost:8001`)
 - `CHROME_BIN=/usr/bin/chromium` if Chrome isn't found automatically (e.g. Debian)
 - `--headed` shows the browser (needs a desktop)
+- `--tracing=retain-on-failure` saves a trace of each failed Playwright test in `test-results/`; open it at https://trace.playwright.dev
 
 Failed tests save a screenshot to `screenshots/<test_name>.png`.
 
@@ -71,6 +74,48 @@ Failed tests save a screenshot to `screenshots/<test_name>.png`.
 - Accessibility checks (labels, keyboard-only flow) with axe-core
 - Cross-browser runs via Selenium Grid
 - Lint in CI (flake8) to catch redefined test functions
+
+## Selenium vs Playwright (same two tests)
+
+`tests/test_intake.py` (Selenium) and `tests/test_intake_playwright.py` (Playwright) check the same
+two things: allergies survive a save, and a future date of birth is rejected.
+
+| | Selenium | Playwright |
+|---|---|---|
+| Waiting | Explicit `WebDriverWait` in `BasePage`, written by me | Built in: actions wait for the element, `expect` retries for up to 5 s |
+| Locators | `(By.CSS_SELECTOR, '[data-test-id="..."]')` via a helper | `get_by_test_id("...")`, after setting the attribute name once |
+| Same 2 tests, local app, 3 runs | 2.21–2.81 s | 0.85–0.97 s |
+| When a test fails | Screenshot (`conftest.py`) | Screenshot, plus a trace: every step, the page before and after, network |
+| Setup | Uses the Chrome already on the machine | Downloads its own browser (`playwright install chromium`), in CI too |
+
+**Easier with Playwright.** No wait code. Failure messages show what was retried and a text snapshot
+of the page: the DOB failure showed the saved row with a 2099 birth date. Traces replace guessing
+from one screenshot.
+
+**Harder, or worth watching**
+- Installing pytest-playwright stopped the Selenium suite from starting: both defined `--headed`.
+- `to_contain_text()` does not check visibility. My first port missed an error message that was set
+  but hidden; the Selenium version caught it, because its visibility check lives inside a
+  page-object helper. Adding `to_be_visible()` fixed the port.
+- Every real failure costs the full 5 s retry window.
+- Codegen, recorded with the DOB bug on, wrote an assertion that the 2099 patient was saved. Useful
+  for finding locators; the assertions have to come from the requirement.
+
+**Speed, honestly.** In one `--durations` run, the two Selenium tests spent 1.14 s in setup and
+1.06 s in their steps; the two Playwright tests spent 0.45 s and 0.37 s. About half the gap is setup:
+my Selenium fixture starts a new Chrome for every test, while Playwright launches one browser per run
+(0.40 s once, then 0.05 s per test) and gives each test its own isolated context. The other half is
+the steps themselves, even though Playwright's steps include logging in (the Selenium tests log in
+during setup). Selenium sends every command to the browser as a separate request through
+chromedriver, and `last_patient()` alone makes about ten. I haven't measured that separately, so it
+is my best explanation, not a proven one.
+
+**Flakiness.** Every run so far did what I expected, with no intermittent failures. That is far too
+few runs to claim anything; real evidence would be many repeated runs, for example in CI.
+
+**When I'd choose each.** Playwright for a new web UI suite: less wait code, traces, fast isolated
+tests. Selenium when a team already has Selenium tests, infrastructure and experience, or needs a
+browser Playwright doesn't drive, such as branded Safari (Playwright uses its own WebKit build).
 
 ## CI
 

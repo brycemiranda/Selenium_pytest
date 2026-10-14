@@ -6,3 +6,4 @@ screenshots/*.png
 report.html
 server.log
 results.xml
+test-results/
