@@ -383,3 +383,39 @@ Deep links to the failing tests (used in the Jira bugs). These IDs are hashes of
 - dob: `#?testId=c1ee32bd21b0cb75f6cc-a29f19bb5153b331ca17` (AC2 far-future), `#?testId=65123cde7074dae2778b-bda4fbe559d127f0bbff` (AC2 tomorrow)
 
 Opening `dob/#?testId=c1ee…` showed the test page with "Error: expect(locator).toBeVisible() failed … Received: hidden" and a View Trace button. Nothing was broken, so nothing needed fixing.
+
+---
+
+## Phase 5: File the bugs in Jira (drafts, before Checkpoint 2)
+
+Checked what acli and the project actually support before drafting:
+
+```bash
+node -e "...chromium.launch()...b.version()"           # chromium 156.0.8078.4 (Playwright 1.64.1)
+acli jira workitem create --help                      # flags: --type --summary --label --description-file --from-json ... (no priority flag)
+acli jira workitem create --generate-json             # has additionalAttributes (documented for custom fields)
+acli jira workitem edit --help ; acli jira workitem edit --generate-json   # no priority here either
+acli jira workitem link --help ; acli jira workitem link create --help
+acli jira workitem link type                          # Blocks, Cloners, Duplicate, Relates
+acli jira project view --key PIQ --json               # issue types: Subtask, Epic, Story, Bug, Task (team-managed)
+acli jira workitem search --jql "project = PIQ ORDER BY key"   # only PIQ-1
+acli jira workitem search --jql 'project = PIQ AND summary ~ "\"keeps allergies\""' --csv --fields key   # PIQ-1 (phrase search works; used to skip duplicates)
+```
+
+**Docs vs reality, #5:** acli 1.3.39 can't set priority with a flag on `create` or `edit`. The only route is `create --from-json` with `additionalAttributes.priority`, which acli documents for custom fields only. Whether it works is **unverified until the first real create**. `file-bugs.sh` reads type, priority and labels back after creating and warns on any mismatch instead of assuming.
+
+There is no Severity field in a Free team-managed project, so severity goes in the description.
+
+Files:
+- `e2e/scripts/bugs/allergy.txt`, `e2e/scripts/bugs/dob.txt`: the drafts (plain text: summary, priority, labels, body)
+- `e2e/scripts/text-to-adf.mjs`: draft → acli `--from-json` payload (ADF description, URLs as links)
+- `e2e/scripts/file-bugs.sh`: create → read back → link (`Blocks` PIQ-1) → comment on PIQ-1. Skips bugs whose summary already exists. `DRY_RUN=1` prints the payloads and commands.
+
+```bash
+bash -n e2e/scripts/file-bugs.sh            # ok
+DRY_RUN=1 e2e/scripts/file-bugs.sh          # payloads + commands printed; the only Jira call is the read-only duplicate search
+```
+
+Evidence links point at the GitHub Pages reports (live only after the PR merges to `main`) and at test files pinned to commit `caaec7f` (permalinks survive branch deletion).
+
+**CHECKPOINT 2:** waiting for Bryce.
