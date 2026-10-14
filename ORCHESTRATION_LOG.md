@@ -655,7 +655,7 @@ gh pr checks 1      # test (clean) / test (allergy) / test (dob): pass, for both
 
 The existing CI runs only the Python suites. The new `e2e/` suite isn't in CI; adding a clean-app-only e2e job is waiting on Bryce's decision.
 
-**CHECKPOINT 3:** waiting for Bryce to review and merge. (Review round below.)
+**CHECKPOINT 3:** waiting for Bryce to review and merge. (Review round and post-merge checks below.)
 
 ### Checkpoint 3 review round
 
@@ -685,3 +685,40 @@ python3 -m venv <scratch>/pyenv && <scratch>/pyenv/bin/python -m pip install pyt
 **Which source was wrong:** the outside check. The API, the event log, the closing PR, the rendered issue page, the release notes and an installed copy of the pinned 0.10.0 all agree. I can't tell why that fetch showed Open; a cached or stale copy of the page is one possibility. Both claims stay. The page now cites the release (v0.9.0), the issue and PR #42165, so readers can check for themselves. (The pytest-playwright check used a throwaway venv in the session scratchpad. The repo's `.venv` and `requirements.txt` were not touched.)
 
 The three new links were checked with `playwright-cli -s=cite` (titles: "Release v0.9.0 · microsoft/playwright-pytest", issue #38610, PR #42165; none was a Unicorn or 404 page). The banner text was read back from the local server.
+
+CI on `8bceead` (the review fixes): 6 of 6 jobs green; PR mergeable. Bryce merged with a merge commit.
+
+---
+
+## After the merge: live verification
+
+```bash
+gh pr view 1 --json state,mergedAt,mergeCommit          # MERGED 2026-10-14T18:46:47Z, merge commit 023cfe0
+gh api repos/brycemiranda/Selenium_pytest/pages --jq '{status, build_type, source}'   # legacy build from main:/docs
+gh api repos/brycemiranda/Selenium_pytest/pages/builds/latest                         # polled until "built 023cfe0"
+curl -s -o /dev/null -w '%{http_code}' https://brycemiranda.github.io/Selenium_pytest/orchestration/   # 200
+```
+
+All of the following were checked with `playwright-cli` against **https://brycemiranda.github.io/Selenium_pytest/**:
+
+| What | How | Result |
+|---|---|---|
+| Demo page is the merged version | `-s=live open .../orchestration/`, read `.banner` | "…requirement approval, review checkpoints and verification by Bryce Miranda." |
+| 8 same-origin links on the page | `fetch(..., {cache:'no-store'})` from the page | all 200 |
+| 4 live-app toggle links | `goto` + read `bug-allergy` / `bug-dob` `.checked` | none / allergy / dob / both, as labelled |
+| 10 GitHub links on the page (now on `main`) | `goto` each and reject `Unicorn\|Not Found` titles | all ok |
+| Report counts | `goto e2e-report/<run>/`, read `nav` | clean 16/16 passed; allergy 14 passed / 2 failed; dob 14 passed / 2 failed |
+| One trace per run | follow "View Trace" for AC3 today / AC1 Penicillin / AC2 far-future | Trace Viewer loads the actions (and the app DOM snapshot); 0 console errors |
+| All 15 URLs inside PIQ-2/3/4 | `acli jira workitem view <key> --fields description --json`, pull every `href`, `goto` each | 14 ok on the first pass, incl. all 6 `#?testId=` deep links (right test + View Trace). The `app.js#L65` permalink returned a Unicorn 503 once; `gh api .../contents/docs/app.js?ref=18190416…` showed line 65 is the `toISOString()` line, and a retry 40 s later loaded the page |
+
+Console: only the known `favicon.ico` 404 at the domain root. The Trace Viewer logs 3 iframe-sandbox warnings, which are its own and not errors.
+
+**Mistake (mine):** my first live trace check reported "0 action rows" for all three traces. I had anchored the `playwright-cli find --regex` pattern with `^`, but `find` matches against indented snapshot lines. Looking at the page showed the trace fully loaded. With the unanchored pattern (the one used locally in Phase 4), all three traces show their actions.
+
+---
+
+## Finish
+
+**Same steps without an AI agent.** Every step in this run is a CLI command recorded above: `npx playwright test` with `BUGS`, `PLAYWRIGHT_HTML_OUTPUT_DIR`, `acli jira workitem …`, `gh …`. Apart from the parts that need judgement (planning, drafting, reviewing), the same commands could run in CI with no agent. For example, a job runs the suite per toggle, publishes the reports with an Actions Pages deploy, and runs `e2e/scripts/file-bugs.sh` (which is idempotent) behind a manual approval.
+
+Open question for Bryce: add an `e2e` job to CI that runs the TypeScript suite on the **clean app only**. Not done without asking.
