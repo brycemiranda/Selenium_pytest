@@ -7,7 +7,7 @@
 // so the marker gets removed.
 import { test, expect, savePatient, patientRow, activeBugs } from '../fixtures';
 
-const ISSUE = 'PIQ-TBD'; // replaced with the Jira key once the bug is filed
+const ISSUE = 'PIQ-4'; // Jira bug for this defect
 const issue = { type: 'issue', description: `https://brycegdsc.atlassian.net/browse/${ISSUE}` };
 
 test.describe('Found by tests: "today" is the UTC date', () => {

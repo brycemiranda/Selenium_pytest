@@ -39,7 +39,7 @@ Source: https://github.com/brycemiranda/Selenium_pytest/blob/18190416c97f44dc0fc
 - Priority: Medium. It only happens for part of each day, the wrong date is visible in the patient list, and the fix is one line (compare against the local date). Schedule it for the next sprint. If the clinic serves time zones ahead of UTC, raise it to High.
 
 ## Frequency
-Always, inside the time windows above. It reproduced in 1 of 1 runs for each case with a pinned clock. The control case (19:30 EDT) behaved correctly.
+Always, inside the time windows above. With pinned clocks, case 1 (local today rejected in UTC+14) failed in 3 of 3 runs and case 2 (local tomorrow accepted at 21:00 EDT) failed in 3 of 3 runs. The control case (19:30 EDT, tomorrow correctly rejected) behaved correctly in 3 of 3 runs.
 
 ## Evidence
 - Tests (marked test.fail with this issue as annotation, so the clean run stays green and Playwright flags them once fixed): https://github.com/brycemiranda/Selenium_pytest/blob/main/e2e/tests/dob/found-utc-today.spec.ts

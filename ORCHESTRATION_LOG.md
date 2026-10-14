@@ -518,4 +518,66 @@ This also confirms the root cause: changing that one line fixes both cases.
 
 The test was written from the reproduction above, not from a `playwright-cli` session. `timezoneId` is a context option set with `test.use()`, and the seed's attached session can't change it.
 
-Bug 3 draft: `e2e/scripts/bugs/utc-today.txt` (labels `found-by-tests`, `playwright-agents`; proposed Major / Medium). `DRY_RUN=1 e2e/scripts/file-bugs.sh utc-today` checked. **Waiting for Bryce's approval of the draft.**
+Bug 3 draft: `e2e/scripts/bugs/utc-today.txt` (labels `found-by-tests`, `playwright-agents`; proposed Major / Medium). `DRY_RUN=1 e2e/scripts/file-bugs.sh utc-today` checked. Approved as drafted (see below).
+
+### Bug 3 approved, filed as PIQ-4
+
+Bryce approved Major / Medium and asked for 3 runs per case so Frequency matches PIQ-2 and PIQ-3:
+
+```bash
+node -e '...for each [timezoneId, pinned clock] x 3: open app, demo/demo, DOB 2026-06-16, Save, read intake-error visibility + row count...'
+# case 1: local today, UTC+14 (expect saved)            -> rejected, rejected, rejected
+# case 2: local tomorrow, 21:00 EDT (expect rejected)   -> saved, saved, saved
+# control: local tomorrow, 19:30 EDT (expect rejected)  -> rejected, rejected, rejected
+```
+
+Frequency in the draft changed to "3 of 3" for each case and the control. Then:
+
+```bash
+DRY_RUN=1 e2e/scripts/file-bugs.sh utc-today
+e2e/scripts/file-bugs.sh utc-today
+# created PIQ-4 (utc-today)
+# read back PIQ-4: Bug|Medium|found-by-tests,playwright-agents
+# ✓ Link between issues has been successfully created (PIQ-4 Relates PIQ-1)
+# ✓ Comment on work item PIQ-1 has been successfully added   (10003)
+```
+
+### Duplicate comment removed (approved by Bryce)
+
+`acli jira workitem comment list --json` has no timestamps, so I read them from the issue instead:
+
+```bash
+acli jira workitem view PIQ-1 --fields comment --json   # id, created, author, sha1(body)
+# 10000 2026-10-14T12:14:58 sha1:27b2157e03aa  (plan)
+# 10001 2026-10-14T12:59:09 sha1:74c8586632e8  (bugs A+B, original)
+# 10002 2026-10-14T12:59:25 sha1:74c8586632e8  (identical body, 16 s later: the duplicate)
+# 10003 2026-10-14T13:16:29 sha1:fdfcc2ea9ab5  (bug 3)
+acli jira workitem comment delete --help                 # example says --issue, flag list says --key (docs vs reality, #6)
+acli jira workitem comment delete --key PIQ-1 --id 10002 # ✓ Successfully deleted the comment with id 10002
+acli jira workitem view PIQ-1 --fields comment --json    # 10000, 10001, 10003
+```
+
+### Annotation, reruns, reports
+
+```bash
+sed -i '' "s/const ISSUE = 'PIQ-TBD'.*/const ISSUE = 'PIQ-4'; \/\/ Jira bug for this defect/" e2e/tests/dob/found-utc-today.spec.ts
+npx tsc --noEmit                                          # ok
+# 3 x 3 runs again with the 16-test suite (JSON reporter, retries 0)
+```
+
+| Run | 1 | 2 | 3 |
+|---|---|---|---|
+| clean | 16 expected / 0 unexpected | 16 / 0 | 16 / 0 |
+| allergy | 14 expected / 2 unexpected | 14 / 2 | 14 / 2 |
+| dob | 14 expected / 2 unexpected | 14 / 2 | 14 / 2 |
+
+Per test, everything matches the first record. The new tests (x = failed as expected under `test.fail()`):
+
+| Test | clean | allergy | dob |
+|---|---|---|---|
+| AC3 local today is accepted in UTC+14 (Pacific/Kiritimati) | xxx | xxx | PPP |
+| AC2 local tomorrow is rejected at 21:00 in New York | xxx | xxx | xxx |
+
+0 flaky across 144 test executions.
+
+Reports regenerated with the same `PLAYWRIGHT_HTML_OUTPUT_DIR` loop: **13 MB** (clean 4.0M, allergy 4.5M, dob 4.2M), 48 trace zips; the old files were replaced. Checked with `playwright-cli -s=check` on `localhost:8765`. All six deep links used in PIQ-2/3/4 open the right test with a View Trace button, and both UTC tests show `issue: https://brycegdsc.atlassian.net/browse/PIQ-4`. The testIds for AC1/AC2 are unchanged.
