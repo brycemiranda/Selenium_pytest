@@ -2,25 +2,29 @@
 
 [![CI](https://github.com/brycemiranda/Selenium_pytest/actions/workflows/ci.yml/badge.svg)](https://github.com/brycemiranda/Selenium_pytest/actions/workflows/ci.yml)
 
-Live demo: https://selenium-pytest.brycemiranda.dev
-
 A small Selenium + pytest suite against a fictional clinic's patient-intake app, with switchable bugs to show each test catches the defect it claims to.
 
 > Fictional clinic (Larkspur Hollow Clinic). Fake data only. No real patient information.
+
+## Try it
+
+Sign in with `demo` / `demo`, then add a patient.
+
+| Link | What to try | What you'll see |
+|---|---|---|
+| [Clean app](https://brycemiranda.github.io/Selenium_pytest/) | Add a patient with allergy `Penicillin`, then one with DOB `2099-01-01` | Penicillin shows in the list, and the future DOB is rejected with an error |
+| [Allergy bug on](https://brycemiranda.github.io/Selenium_pytest/?bugs=allergy) | Add a patient with allergy `Penicillin` | The patient saves, but the Allergies cell is empty and nothing warns you |
+| [DOB bug on](https://brycemiranda.github.io/Selenium_pytest/?bugs=dob) | Add a patient with DOB `2099-01-01` | The patient saves with no error |
+
+The checkboxes on the page switch bugs on and off too. `?bugs=allergy,dob` turns on both.
+
+Video walkthrough (2–3 min): coming soon
 
 ## What's here
 
 - `docs/` — static app (HTML/CSS/JS): login, intake form, in-memory patient list, bug toggles
 - `tests/pages/` — Page Objects: `LoginPage`, `IntakePage`, `PatientListPage`
 - `tests/` — 5 tests, browser setup and screenshot-on-failure in `conftest.py`
-
-## Try the bug toggles
-
-Log in with `demo` / `demo`. Turn bugs on with the checkboxes, or by URL:
-
-- `?bugs=allergy` — allergies are silently dropped on save
-- `?bugs=dob` — a future date of birth is accepted
-- `?bugs=allergy,dob` — both
 
 ## Bug → test → why it matters
 
