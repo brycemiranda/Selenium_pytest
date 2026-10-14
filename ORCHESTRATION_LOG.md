@@ -159,3 +159,78 @@ npx playwright test --help                               # --debug [mode]: "insp
 ```
 
 **Mistake (mine, again):** one `npx playwright test --help` ran without `nvm use 22` and got "Playwright requires Node.js 20 or higher". Rerun correctly. Every command now sources `nvm use 22` first.
+
+---
+
+## Phase 2: Plan from the Jira story
+
+The plan step follows the skill's §1 (go through the seed, then explore with `playwright-cli`). Output: `e2e/specs/patient-intake.md`.
+
+### Exploration commands
+
+```bash
+cd e2e
+PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/seed.spec.ts --debug=cli   # background; prints: Run "playwright-cli attach tw-3e7e60"
+playwright-cli attach tw-3e7e60       # Paused: Navigate ./ at tests/fixtures.ts:23
+playwright-cli resume                 # -> "The browser 'default' is not open"
+playwright-cli -s=tw-3e7e60 resume    # ran the seed to the end; the test passed and the browser closed
+```
+
+**Docs vs reality, #1:** after `attach`, the skill's examples use bare `playwright-cli resume` / `snapshot`. In 0.1.22 every command needs `-s=<session>`.
+**Docs vs reality, #2:** the skill says "resume so that seed test runs fully, then probe". But `resume` lets the test *finish*, which closes the browser. What works is `pause-at` on the seed's last line:
+
+```bash
+PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/seed.spec.ts --debug=cli   # background; tw-da8ee1
+playwright-cli attach tw-da8ee1
+playwright-cli --help pause-at                        # <file>:<line>
+playwright-cli -s=tw-da8ee1 pause-at seed.spec.ts:7   # Paused: Expect "toBeVisible" getByTestId('intake-name'); page is logged in
+```
+
+**Docs vs reality, #3:** in the attached session, `playwright-cli -s=tw-da8ee1 fill "getByTestId('intake-name')" ...` gives `does not match any elements`. The CLI's `getByTestId` uses `data-testid`, ignoring the test config's `testIdAttribute`. I used CSS `[data-test-id="..."]` targets. The CLI then emits `page.locator('[data-test-id="intake-name"]')`, which the tests write as the equivalent `page.getByTestId('intake-name')`.
+
+Probes (each `fill` / `click` printed its Playwright code; state read with `--raw eval`):
+
+```bash
+playwright-cli -s=tw-da8ee1 fill '[data-test-id="intake-name"]' 'Ada Testpatient'
+playwright-cli -s=tw-da8ee1 fill '[data-test-id="intake-dob"]' '1990-04-12'
+playwright-cli -s=tw-da8ee1 fill '[data-test-id="intake-allergies"]' 'Penicillin'
+playwright-cli -s=tw-da8ee1 fill '[data-test-id="intake-medication"]' 'Lisinopril'
+playwright-cli -s=tw-da8ee1 click '[data-test-id="intake-save"]'
+playwright-cli -s=tw-da8ee1 --raw eval "JSON.stringify({rows:[...document.querySelectorAll('[data-test-id=patient-row]')].map(r=>[...r.cells].map(c=>c.textContent).join('|')), ...})"
+# ...same fill/click/eval loop for every DOB value below...
+playwright-cli -s=tw-da8ee1 run-code "async page => { await page.clock.setFixedTime(new Date('2026-10-15T02:00:00Z')); return await page.evaluate(() => ({utc:new Date().toISOString().slice(0,10), local:new Date().toLocaleDateString('en-CA')})); }"
+playwright-cli -s=tw-da8ee1 tab-new https://brycemiranda.github.io/Selenium_pytest/   # fresh, logged-out page for the login probes
+playwright-cli -s=tw-da8ee1 reload
+playwright-cli -s=tw-da8ee1 tab-close
+playwright-cli -s=tw-da8ee1 resume    # seed finished: 1 passed
+playwright-cli list                   # (no browsers)
+```
+
+Observed on the clean app (browser zone America/New_York, real date 2026-10-14):
+
+| Input | Result |
+|---|---|
+| Penicillin / "Penicillin, Sulfa drugs" | saved verbatim in the allergies cell |
+| DOB 2099-01-01 | visible "Date of birth cannot be in the future.", not saved, form keeps the values |
+| DOB 2026-10-14 (today) | saved |
+| DOB 2026-10-15 (tomorrow) | visible future error, not saved |
+| `1990/04/12`, `12-04-1990`, `1990-4-12`, `19900412`, `abc`, empty | visible "Date of birth must be YYYY-MM-DD.", not saved |
+| `" 1990-04-12 "` | trimmed, saved as `1990-04-12` |
+| `2026-02-30`, `0000-00-00` | **saved** (impossible dates accepted) |
+| `2026-13-45` | rejected, but only as "in the future" |
+| empty name | visible "Name is required." |
+| clock pinned to 2026-10-15T02:00Z (22:00 NY), DOB 2026-10-15 | **saved**: the local "tomorrow" is accepted (UTC-today defect) |
+| login demo/wrong-password, empty, DEMO/demo | visible "Invalid username or password.", intake hidden |
+| login demo/demo after a failure | error hidden, intake + list visible |
+| reload | back to the sign-in form, list cleared |
+
+### Plan decisions
+
+- **Date pinning** at 2026-06-15T12:00:00Z for the today/tomorrow boundary, so the suite is deterministic in any time zone (UTC−11…UTC+11) and at any hour. The trade-off: it masks the UTC-today defect. That defect is listed as a known gap in the plan for Bryce to decide on, not hidden.
+- **Bug isolation:** only AC1 scenarios assert allergies, and only AC2 scenarios assert future-date rejection, so each toggle fails exactly its own scenarios.
+- **AC4 data-driven:** six values in one file (deviates from the skill's one-test-per-file rule, which I log here).
+- **Login:** two scenarios with no AC (PIQ-1 has no login criterion), titled `NO-AC (login) …`.
+
+The plan has 13 tests plus the seed. AC coverage: AC1 2, AC2 2, AC3 1, AC4 6. No AC is uncovered.
+
+**CHECKPOINT 1:** waiting for Bryce.
