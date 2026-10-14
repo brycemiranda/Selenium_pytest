@@ -418,4 +418,104 @@ DRY_RUN=1 e2e/scripts/file-bugs.sh          # payloads + commands printed; the o
 
 Evidence links point at the GitHub Pages reports (live only after the PR merges to `main`) and at test files pinned to commit `caaec7f` (permalinks survive branch deletion).
 
-**CHECKPOINT 2:** waiting for Bryce.
+**CHECKPOINT 2:** waiting for Bryce. (Outcome below.)
+
+### Checkpoint 2 outcome
+
+Bryce approved A and B with changes:
+- Link type **Relates**, not Blocks. The clean app passes all four ACs, so the story isn't blocked: the defects only exist with a toggle on. (My suggestion of Blocks was rejected.)
+- Priority via `additionalAttributes`: go ahead, and report back if the read-back warns.
+- File the UTC "today" defect as Bug 3, label `found-by-tests`, say clearly that it was not planted, and show the draft first.
+- Cover it with a `test.fail()` test annotated with the Jira key. Don't change the app. Regenerate the reports.
+- Record that the brief's `comment-create` was wrong for acli 1.3.39 (see "Docs vs reality, #4" above: caught from `acli jira workitem comment-create --help`, which just prints the `workitem` command list).
+
+### Filing A and B
+
+```bash
+sed -i '' 's/--type Blocks --yes/--type Relates --yes/g' e2e/scripts/file-bugs.sh
+DRY_RUN=1 e2e/scripts/file-bugs.sh allergy dob
+e2e/scripts/file-bugs.sh allergy dob
+```
+
+**Mistake (mine), run 1:** the script took the new key from the first `PIQ-<n>` in `acli jira workitem create --json` output. That output echoes the description, which mentions "PIQ-1 AC1", so the script used **PIQ-1** as the new bug:
+
+```
++ acli jira workitem create --from-json .../allergy.json --json
+created PIQ-1 (allergy)
+read back PIQ-1: Story|Medium| (type|priority|labels)
+WARNING: PIQ-1 does not match the draft (wanted Bug|Highest|injected-defect,playwright-agents); fix it in Jira
++ acli jira workitem link create --out PIQ-1 --in PIQ-1 --type Relates --yes
+✗ You cannot link an issue to itself.
+```
+
+The read-back warning and Jira's self-link refusal stopped it. PIQ-1 was not changed. **PIQ-2 had been created correctly** (Bug, Highest, both labels), so `additionalAttributes.priority` *does* work in acli 1.3.39 (resolves "Docs vs reality, #5"). Fix: look the key up by exact summary (`find_key`, retrying for search-index lag) instead of grepping the create output; make an existing bug still get its link; take the label check from the draft.
+
+Run 2:
+
+```
+skip create for allergy: PIQ-2 already has summary "Allergies are silently dropped when a patient is saved"
++ acli jira workitem link create --out PIQ-2 --in PIQ-1 --type Relates --yes    ✓ (PIQ-2 Relates PIQ-1)
++ acli jira workitem create --from-json .../dob.json
+created PIQ-3 (dob)
+read back PIQ-3: Bug|High|injected-defect,playwright-agents
++ acli jira workitem link create --out PIQ-3 --in PIQ-1 --type Relates --yes    ✓ (PIQ-3 Relates PIQ-1)
++ acli jira workitem comment create --key PIQ-1 --body-file .../story-comment.txt   ✓ (comment 10001)
+```
+
+**Mistake (mine), run 3, the "idempotency check":** I reran the script for real to show that a second run makes no writes, and it **did write**. `ensure_link` grepped `acli jira workitem link list --key PIQ-2 --json` for `"PIQ-1"`, but that JSON leaves out the linked key on the inward side (`{"id":"10000","outwardIssueKey":null,"typeName":"Relates"}`). The check therefore failed, and the script called `link create` again for PIQ-2 and PIQ-3 (Jira did not add duplicate links: `link list --key PIQ-1` still shows exactly 10000 → PIQ-2 and 10001 → PIQ-3) and posted a **duplicate comment, 10002**, on PIQ-1. I should have checked the JSON shape first and run the rerun with `DRY_RUN=1`. Fix: read `acli jira workitem view <key> --fields issuelinks --json` (it has `inwardIssue.key`), and let `ensure_link` run under `DRY_RUN` (writes go through `run()`, so they stay off). Then:
+
+```bash
+DRY_RUN=1 e2e/scripts/file-bugs.sh allergy dob   # PIQ-2/PIQ-3 already linked; "nothing new filed or linked; no comment on PIQ-1"
+e2e/scripts/file-bugs.sh allergy dob             # same output, no writes; comments still 10000,10001,10002
+```
+
+Comment 10002 is still there. Deleting it is a Jira write, so I asked Bryce first.
+
+Jira state after A and B (`acli jira workitem search --jql "project = PIQ ORDER BY key" --csv --fields key,issuetype,priority,status,labels,summary`):
+
+| Key | Type | Priority | Status | Labels | Summary |
+|---|---|---|---|---|---|
+| PIQ-1 | Story | Medium | To Do | | Intake form keeps allergies and rejects invalid birth dates |
+| PIQ-2 | Bug | Highest | To Do | injected-defect, playwright-agents | Allergies are silently dropped when a patient is saved |
+| PIQ-3 | Bug | High | To Do | injected-defect, playwright-agents | Future date of birth is accepted and the patient is saved |
+
+---
+
+## What the tests found: "today" is the UTC date (real defect, not injected)
+
+`docs/app.js:65`: `const today = new Date().toISOString().slice(0, 10);` compares a local calendar date with the **UTC** date.
+
+Reproduced with real `timezoneId`s and a pinned clock (Node + `@playwright/test`'s `chromium`, live app, no toggle):
+
+| timezoneId | Local time | UTC | DOB entered | Result |
+|---|---|---|---|---|
+| Pacific/Kiritimati | 2026-06-16 02:00 | 2026-06-15 12:00 | 2026-06-16 (local **today**) | **rejected**: "Date of birth cannot be in the future.", 0 rows |
+| America/New_York | 2026-06-15 21:00 EDT | 2026-06-16 01:00 | 2026-06-16 (local **tomorrow**) | **accepted**: no error, 1 row |
+| America/New_York (control) | 2026-06-15 19:30 EDT | 2026-06-15 23:30 | 2026-06-16 (local tomorrow) | rejected, correct |
+
+A correction to the brief: "after 20:00" in New York holds under EDT (UTC−4). Under EST (UTC−5) the window starts at 19:00.
+
+Test: `e2e/tests/dob/found-utc-today.spec.ts`. Two tests, each with `test.use({ timezoneId })`, a pinned clock, `test.fail()`, and an `issue` annotation. The Kiritimati test is marked to fail only when `BUGS` doesn't include `dob`: with the future check turned off, local today is accepted, so the test passes for that reason.
+
+```bash
+npx tsc --noEmit                                  # ok
+PLAYWRIGHT_HTML_OPEN=never npx playwright test    # clean: 16 passed (the 2 UTC tests are expected failures)
+BUGS=allergy ... npx playwright test              # 2 failed (AC1 only), 14 passed
+BUGS=dob ...     npx playwright test              # 2 failed (AC2 only), 14 passed; Kiritimati passes, New York is an expected failure
+```
+
+**Does `test.fail()` flag the fix?** I checked against a scratch copy of the app (in the session scratchpad, not the repo) with line 65 changed to use the local date, served on `localhost:8766`:
+
+```bash
+BASE_URL=http://localhost:8766/Selenium_pytest/ npx playwright test
+#  1) ... AC3 local today is accepted in UTC+14 (Pacific/Kiritimati)   Expected to fail, but passed.
+#  2) ... AC2 local tomorrow is rejected at 21:00 in New York           Expected to fail, but passed.
+#  2 failed, 14 passed
+git diff --stat docs/    # empty: the real app is unchanged
+```
+
+This also confirms the root cause: changing that one line fixes both cases.
+
+The test was written from the reproduction above, not from a `playwright-cli` session. `timezoneId` is a context option set with `test.use()`, and the seed's attached session can't change it.
+
+Bug 3 draft: `e2e/scripts/bugs/utc-today.txt` (labels `found-by-tests`, `playwright-agents`; proposed Major / Medium). `DRY_RUN=1 e2e/scripts/file-bugs.sh utc-today` checked. **Waiting for Bryce's approval of the draft.**
