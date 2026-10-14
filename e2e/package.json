@@ -1,0 +1,16 @@
+{
+  "name": "piq-e2e",
+  "private": true,
+  "description": "Playwright Test (TypeScript) suite for the Larkspur Hollow Clinic intake demo, generated with playwright-cli",
+  "scripts": {
+    "test": "playwright test",
+    "test:allergy": "BUGS=allergy playwright test",
+    "test:dob": "BUGS=dob playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2"
+  }
+}

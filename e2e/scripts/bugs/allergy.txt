@@ -1,0 +1,42 @@
+Summary: Allergies are silently dropped when a patient is saved
+Priority: Highest
+Labels: injected-defect, playwright-agents
+
+## Summary
+Saving a patient with an allergy stores the patient with an empty allergies field. No error or warning is shown. Breaks PIQ-1 AC1.
+This defect was injected on purpose for a QA demo (toggle ?bugs=allergy). It was caught by the generated Playwright tests.
+
+## Environment
+- URL: https://brycemiranda.github.io/Selenium_pytest/?bugs=allergy
+- Browser: Chromium 156.0.8078.4 (Playwright 1.64.1, headless, macOS)
+- Date: 2026-10-14
+- App: static demo, fictional clinic, fake data only
+
+## Steps to reproduce
+1. Open https://brycemiranda.github.io/Selenium_pytest/?bugs=allergy
+2. Sign in as demo / demo
+3. Enter Full name "Ada Testpatient", Date of birth "1990-04-12", Allergies "Penicillin", Current medication "Lisinopril"
+4. Click Save patient
+5. Look at Ada Testpatient's row in the Patients table
+
+## Expected
+The Allergies column shows "Penicillin" for Ada Testpatient (AC1).
+
+## Actual
+The Allergies column is empty. No error is shown, and the form is cleared, so the nurse has no reason to suspect the allergy was lost.
+
+## Severity vs priority
+- Severity: Critical. A lost penicillin allergy can lead to a penicillin prescription and anaphylaxis, and nothing warns anyone.
+- Priority: Highest. It silently corrupts safety-critical data on every save, so fix it before anything else ships.
+
+## Frequency
+Always. Both AC1 tests failed in 3 of 3 runs (6 of 6 executions). Every other test passed in the same runs.
+
+## Evidence
+- Failing test in the published report (with trace): https://brycemiranda.github.io/Selenium_pytest/e2e-report/allergy/#?testId=11a438ffe646e21df862-f3f5afc598b3521c7db2
+- Second failing test: https://brycemiranda.github.io/Selenium_pytest/e2e-report/allergy/#?testId=de0d0600ec6008df6544-cddb7d2ca40b921eb20c
+- Assertion: expected "Penicillin", received "" on the allergies cell of the patient's row
+- Test file: https://github.com/brycemiranda/Selenium_pytest/blob/caaec7f4880bfc547fa77a44528e4fdfa351c147/e2e/tests/allergies/ac1-penicillin-shown-for-that-patient.spec.ts
+- Same test passes on the clean app: https://brycemiranda.github.io/Selenium_pytest/e2e-report/clean/
+
+Filed by Claude Code with acli after review by Bryce Miranda.

@@ -1,0 +1,50 @@
+Summary: Date-of-birth check uses the UTC date, so local today is rejected (UTC+) and local tomorrow is accepted (US evenings)
+Priority: Medium
+Labels: found-by-tests, playwright-agents
+
+## Summary
+This bug was NOT planted. It is in the normal app with no bug toggle on. The generated Playwright tests found it while exploring the AC2/AC3 date boundary.
+The future-date check compares the entered date of birth with today's date in UTC, not the user's local date. Whenever the local date and the UTC date differ, the check is off by one day. Breaks PIQ-1 AC3 in time zones ahead of UTC and PIQ-1 AC2 in time zones behind UTC.
+
+## Root cause
+docs/app.js line 65, in validate():
+const today = new Date().toISOString().slice(0, 10);
+toISOString() returns the UTC date. The entered DOB is a local calendar date.
+Source: https://github.com/brycemiranda/Selenium_pytest/blob/18190416c97f44dc0fc20a938d298f98a669b694/docs/app.js#L65
+
+## Environment
+- URL: https://brycemiranda.github.io/Selenium_pytest/ (no bug toggle)
+- Browser: Chromium 156.0.8078.4 (Playwright 1.64.1, headless, macOS), time zone and clock set with Playwright
+- Date: 2026-10-14
+- App: static demo, fictional clinic, fake data only
+
+## Steps to reproduce (case 1: local today rejected in UTC+14)
+1. Open the app in a browser context with Playwright timezoneId "Pacific/Kiritimati" and the clock fixed at 2026-06-15T12:00:00Z (local time 2026-06-16 02:00)
+2. Sign in as demo / demo
+3. Enter Full name "Ivy Newborn", Date of birth "2026-06-16" (local today), and click Save patient
+- Expected: the patient is saved (AC3)
+- Actual: visible error "Date of birth cannot be in the future." and the patient is not saved
+- This happens every day between 00:00 and 13:59 local time in UTC+14, and before the local UTC-offset hour in any zone ahead of UTC
+
+## Steps to reproduce (case 2: local tomorrow accepted in a US evening)
+1. Open the app in a browser context with Playwright timezoneId "America/New_York" and the clock fixed at 2026-06-16T01:00:00Z (local time 2026-06-15 21:00 EDT)
+2. Sign in as demo / demo
+3. Enter Full name "Jo Tomorrow", Date of birth "2026-06-16" (local tomorrow), and click Save patient
+- Expected: visible error "Date of birth cannot be in the future." and the patient is not saved (AC2)
+- Actual: no error, and the patient is saved with tomorrow's date
+- This happens from 20:00 EDT (19:00 EST) to midnight. Control check: at 19:30 EDT the same input is correctly rejected.
+
+## Severity vs priority
+- Severity: Major. A newborn registered on its birth day can be rejected in UTC+ time zones. That blocks registration or pushes staff to enter yesterday's date, and neonatal dosing depends on age in days. In US evenings a next-day DOB gets through, giving a newborn an age that is wrong by a day.
+- Priority: Medium. It only happens for part of each day, the wrong date is visible in the patient list, and the fix is one line (compare against the local date). Schedule it for the next sprint. If the clinic serves time zones ahead of UTC, raise it to High.
+
+## Frequency
+Always, inside the time windows above. With pinned clocks, case 1 (local today rejected in UTC+14) failed in 3 of 3 runs and case 2 (local tomorrow accepted at 21:00 EDT) failed in 3 of 3 runs. The control case (19:30 EDT, tomorrow correctly rejected) behaved correctly in 3 of 3 runs.
+
+## Evidence
+- Tests (marked test.fail with this issue as annotation, so the clean run stays green and Playwright flags them once fixed): https://github.com/brycemiranda/Selenium_pytest/blob/main/e2e/tests/dob/found-utc-today.spec.ts
+- Clean-run report, UTC+14 test: https://brycemiranda.github.io/Selenium_pytest/e2e-report/clean/#?testId=87ff293992484b28c189-8c759fcd3ba0e9326f7b
+- Clean-run report, New York test: https://brycemiranda.github.io/Selenium_pytest/e2e-report/clean/#?testId=87ff293992484b28c189-8f16b44dffbe4fd40465
+- Checked against a scratch copy of the app with line 65 changed to use the local date: both tests reported "Expected to fail, but passed", which confirms the root cause.
+
+Filed by Claude Code with acli after review by Bryce Miranda.

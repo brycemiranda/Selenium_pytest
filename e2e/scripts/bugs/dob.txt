@@ -1,0 +1,41 @@
+Summary: Future date of birth is accepted and the patient is saved
+Priority: High
+Labels: injected-defect, playwright-agents
+
+## Summary
+A date of birth in the future (including tomorrow) is accepted. No error is shown and the patient is saved. Breaks PIQ-1 AC2.
+This defect was injected on purpose for a QA demo (toggle ?bugs=dob). It was caught by the generated Playwright tests.
+
+## Environment
+- URL: https://brycemiranda.github.io/Selenium_pytest/?bugs=dob
+- Browser: Chromium 156.0.8078.4 (Playwright 1.64.1, headless, macOS)
+- Date: 2026-10-14
+- App: static demo, fictional clinic, fake data only
+
+## Steps to reproduce
+1. Open https://brycemiranda.github.io/Selenium_pytest/?bugs=dob
+2. Sign in as demo / demo
+3. Enter Full name "Dee Future", Date of birth "2099-01-01", Allergies "Latex", Current medication "Aspirin"
+4. Click Save patient
+
+## Expected
+A visible error "Date of birth cannot be in the future." appears and the patient is not saved (AC2).
+
+## Actual
+No error is shown. Dee Future is added to the Patients table with date of birth 2099-01-01. The same happens with tomorrow's date.
+
+## Severity vs priority
+- Severity: Major. A future birth date gives a negative or nonsense age, which breaks age- and weight-based dosing for that patient.
+- Priority: High. Fix it in the current sprint. It's below the allergy bug because the bad date is visible in the patient list, while a dropped allergy leaves no trace.
+
+## Frequency
+Always. Both AC2 tests (2099-01-01 and tomorrow) failed in 3 of 3 runs (6 of 6 executions). Every other test passed in the same runs.
+
+## Evidence
+- Failing test in the published report (with trace): https://brycemiranda.github.io/Selenium_pytest/e2e-report/dob/#?testId=c1ee32bd21b0cb75f6cc-a29f19bb5153b331ca17
+- Second failing test (tomorrow): https://brycemiranda.github.io/Selenium_pytest/e2e-report/dob/#?testId=65123cde7074dae2778b-bda4fbe559d127f0bbff
+- Assertion: expect(getByTestId('intake-error')).toBeVisible() failed, received hidden
+- Test file: https://github.com/brycemiranda/Selenium_pytest/blob/caaec7f4880bfc547fa77a44528e4fdfa351c147/e2e/tests/dob/ac2-far-future-dob-rejected.spec.ts
+- Same test passes on the clean app: https://brycemiranda.github.io/Selenium_pytest/e2e-report/clean/
+
+Filed by Claude Code with acli after review by Bryce Miranda.
