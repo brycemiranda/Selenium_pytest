@@ -722,3 +722,10 @@ Console: only the known `favicon.ico` 404 at the domain root. The Trace Viewer l
 **Same steps without an AI agent.** Every step in this run is a CLI command recorded above: `npx playwright test` with `BUGS`, `PLAYWRIGHT_HTML_OUTPUT_DIR`, `acli jira workitem …`, `gh …`. Apart from the parts that need judgement (planning, drafting, reviewing), the same commands could run in CI with no agent. For example, a job runs the suite per toggle, publishes the reports with an Actions Pages deploy, and runs `e2e/scripts/file-bugs.sh` (which is idempotent) behind a manual approval.
 
 Open question for Bryce: add an `e2e` job to CI that runs the TypeScript suite on the **clean app only**. Not done without asking.
+
+**Decision (Bryce, 2026-10-14): no CI job today. `.github/workflows/ci.yml` is left as is.**
+
+## Next steps
+
+- **CI job for the e2e suite (planned, not built):** run `e2e/` in CI against a local copy of the app, not the live site. Serve it with `python -m http.server <port> --directory docs`, so the URL is `http://localhost:<port>/` (no `/Selenium_pytest/` subpath), and run `BASE_URL=http://localhost:<port>/ npx playwright test` on the **clean app only** (no `BUGS`). Upload the HTML report (`e2e/playwright-report/`) as a workflow artifact. Running the suite locally against a served copy already works: Phase 3's `test.fail()` check did the same thing against a patched copy on `localhost:8766`.
+- Later: replace the committed `docs/e2e-report/` with an Actions Pages deploy that `needs:` the tests (see Phase 4).
