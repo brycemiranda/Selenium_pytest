@@ -24,7 +24,7 @@ Video walkthrough (2–3 min): coming soon
 
 [brycemiranda.github.io/Selenium_pytest/orchestration/](https://brycemiranda.github.io/Selenium_pytest/orchestration/) shows a Jira story turned into a test plan, generated Playwright tests (in `e2e/`), runs on the clean app and each injected bug, Jira bugs filed with evidence, and the published reports with traces. All of it was done with CLI tools; the full record is in [ORCHESTRATION_LOG.md](ORCHESTRATION_LOG.md).
 
-Orchestrated by Claude Code; requirement, review checkpoints and verification by Bryce Miranda.
+Orchestrated by Claude Code; requirement approval, review checkpoints and verification by Bryce Miranda.
 
 ## What's here
 

@@ -655,4 +655,33 @@ gh pr checks 1      # test (clean) / test (allergy) / test (dob): pass, for both
 
 The existing CI runs only the Python suites. The new `e2e/` suite isn't in CI; adding a clean-app-only e2e job is waiting on Bryce's decision.
 
-**CHECKPOINT 3:** waiting for Bryce to review and merge.
+**CHECKPOINT 3:** waiting for Bryce to review and merge. (Review round below.)
+
+### Checkpoint 3 review round
+
+**1. Credit line (a correction to the brief).** The brief's line was "Orchestrated by Claude Code; requirement, review checkpoints and verification by Bryce Miranda." The acceptance criteria were drafted with Claude and approved by Bryce, so in the page banner and the README it now reads: **"Orchestrated by Claude Code; requirement approval, review checkpoints and verification by Bryce Miranda."** It's also listed under the brief corrections on the page.
+
+**2. #38610 and "Python attach support shipped in Aug 2026" were challenged.** Bryce's separate check today (the GitHub issue page, fetched twice) showed #38610 as Open with no linked PRs. Primary evidence:
+
+```bash
+gh issue view 38610 -R microsoft/playwright --json state,stateReason,closedAt,url
+#   {"closedAt":"2026-08-11T08:34:42Z","state":"CLOSED","stateReason":"COMPLETED","url":"https://github.com/microsoft/playwright/issues/38610"}
+gh api repos/microsoft/playwright/issues/38610/events --jq '.[] | select(.event=="closed" or .event=="reopened") | {event, actor: .actor.login, created_at}'
+#   {"event":"closed","actor":"Skn0tt","created_at":"2026-08-11T08:34:42Z"}   (never reopened)
+gh pr view 42165 -R microsoft/playwright --json state,mergedAt,closingIssuesReferences
+#   MERGED 2026-08-11T08:34:41Z, closes [38610]
+playwright-cli -s=issue2 open https://github.com/microsoft/playwright/issues/38610 ; playwright-cli -s=issue2 screenshot
+#   rendered page: purple "Closed" badge, linked "#42165"
+
+gh release view v0.9.0 -R microsoft/playwright-pytest --json tagName,publishedAt,url,body
+#   v0.9.0, published 2026-08-10T10:00:04Z: "Adds `--playwright-debug=cli`: pytest pauses at the start of the first context and prints a `python -m playwright cli attach …` command ..."
+gh api repos/microsoft/playwright-pytest/compare/70e8949905d62e92531973d78a267e3620b6d66f...v0.9.0 --jq '{status}'   # "identical": v0.9.0 is PR #315's merge commit
+gh api repos/microsoft/playwright-pytest/compare/70e8949905d62e92531973d78a267e3620b6d66f...v0.8.0 --jq '{status}'   # "behind": not in v0.8.0
+python3 -m venv <scratch>/pyenv && <scratch>/pyenv/bin/python -m pip install pytest-playwright==0.10.0
+<scratch>/pyenv/bin/python -m pytest --help | grep -A3 -- --playwright-debug
+#   --playwright-debug={cli}   Enable Playwright CLI debugging. Requires -s/--capture=no.
+```
+
+**Which source was wrong:** the outside check. The API, the event log, the closing PR, the rendered issue page, the release notes and an installed copy of the pinned 0.10.0 all agree. I can't tell why that fetch showed Open; a cached or stale copy of the page is one possibility. Both claims stay. The page now cites the release (v0.9.0), the issue and PR #42165, so readers can check for themselves. (The pytest-playwright check used a throwaway venv in the session scratchpad. The repo's `.venv` and `requirements.txt` were not touched.)
+
+The three new links were checked with `playwright-cli -s=cite` (titles: "Release v0.9.0 · microsoft/playwright-pytest", issue #38610, PR #42165; none was a Unicorn or 404 page). The banner text was read back from the local server.

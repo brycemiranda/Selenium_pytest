@@ -64,7 +64,7 @@
   <header>
     <h1>QA orchestration demo</h1>
     <p class="sub">Larkspur Hollow Clinic patient intake. Fictional clinic, fake data only.</p>
-    <p class="banner">Orchestrated by Claude Code; requirement, review checkpoints and verification by Bryce Miranda.</p>
+    <p class="banner">Orchestrated by Claude Code; requirement approval, review checkpoints and verification by Bryce Miranda.</p>
   </header>
 
   <section id="what">
@@ -91,7 +91,7 @@
       <li><div class="step"><b>Reports</b><span>GitHub Pages</span></div></li>
     </ol>
     <p><strong>CLI tools, no MCP servers:</strong> every step is a shell command you can read in the log and rerun, and the same commands could run in CI without an AI agent.</p>
-    <p><strong>Why TypeScript:</strong> the installed <code>playwright-cli</code> skill's plan / generate / heal workflow targets <code>@playwright/test</code> and emits TypeScript; Python attach support (<code>pytest --playwright-debug=cli</code>) shipped in Aug 2026 but isn't in the bundled skill yet.</p>
+    <p><strong>Why TypeScript:</strong> the installed <code>playwright-cli</code> skill's plan / generate / heal workflow targets <code>@playwright/test</code> and emits TypeScript; Python attach support (<code>pytest --playwright-debug=cli</code>) shipped in <a href="https://github.com/microsoft/playwright-pytest/releases/tag/v0.9.0">pytest-playwright v0.9.0</a> (2026-08-10) but isn't in the bundled skill yet.</p>
     <p class="muted">The repo's existing Python Selenium and pytest-playwright suites are unchanged. This TypeScript suite sits next to them in <code>e2e/</code>.</p>
   </section>
 
@@ -185,7 +185,8 @@
     <ul class="tight">
       <li>The brief said <code>acli jira workitem comment-create</code>. In acli 1.3.39 that command doesn't exist; it's <code>acli jira workitem comment create</code>, found from <code>--help</code>.</li>
       <li>The brief said "after 20:00" in New York. That's true under EDT. Under EST (winter) the window starts at 19:00.</li>
-      <li>The brief cited Playwright issue #38610 as an open request for Python test agents. It was closed as completed in Aug 2026; TypeScript was kept because the installed skill doesn't cover Python yet.</li>
+      <li>The brief cited Playwright issue <a href="https://github.com/microsoft/playwright/issues/38610">#38610</a> as an open request for Python test agents. GitHub shows it closed as completed on 2026-08-11 by <a href="https://github.com/microsoft/playwright/pull/42165">PR #42165</a>. A later outside check reported it as still open; the API and the issue page were checked again and both show it closed. TypeScript was kept because the installed skill doesn't cover Python yet.</li>
+      <li>The brief's credit line said "requirement … by Bryce Miranda". The acceptance criteria were drafted with Claude and approved by Bryce, so the line now says "requirement approval".</li>
       <li>The <code>playwright-cli</code> skill docs: after <code>attach</code>, commands need <code>-s=&lt;session&gt;</code>; "resume, then explore" closes the browser (<code>pause-at</code> works); the CLI's <code>getByTestId</code> ignores the project's <code>data-test-id</code> setting. The skill also suggests <code>test.fixme</code> for confirmed bugs, which this run's rules forbid.</li>
       <li>acli's own <code>--help</code>: the <code>comment delete</code> example uses <code>--issue</code> but the flag is <code>--key</code>. Priority isn't a flag, but <code>additionalAttributes</code> in <code>--from-json</code> sets it.</li>
     </ul>
