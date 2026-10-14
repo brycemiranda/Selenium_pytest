@@ -1,0 +1,18 @@
+Test plan for PIQ-1 (written by Claude Code from a playwright-cli exploration of the live app, reviewed by Bryce Miranda)
+
+Plan: https://github.com/brycemiranda/Selenium_pytest/blob/orchestration-demo/e2e/specs/patient-intake.md
+
+Coverage, 13 Playwright tests (TypeScript, chromium):
+- AC1, allergies saved as entered: 2 tests ("Penicillin" stays with the right patient; "Penicillin, Sulfa drugs" kept verbatim)
+- AC2, future DOB rejected with a visible error and not saved: 2 tests (2099-01-01; tomorrow)
+- AC3, today accepted: 1 test
+- AC4, non-YYYY-MM-DD rejected with a visible error: 6 tests (1990/04/12, 12-04-1990, 1990-4-12, 19900412, abc, empty)
+- Login (not in this story): 2 tests
+
+The today/tomorrow tests pin the browser clock to 2026-06-15 12:00 UTC so they give the same result in any time zone.
+
+Gaps found during exploration, not covered by the ACs:
+1. "Today" is computed in UTC, not local time. At 22:00 in New York, tomorrow's local date was accepted.
+2. Impossible dates such as 2026-02-30 and 0000-00-00 are accepted.
+
+Next: generate the tests, run them on the clean app and with each injected bug (?bugs=allergy, ?bugs=dob), and file bugs for what they catch.

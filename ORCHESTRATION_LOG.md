@@ -234,3 +234,86 @@ Observed on the clean app (browser zone America/New_York, real date 2026-10-14):
 The plan has 13 tests plus the seed. AC coverage: AC1 2, AC2 2, AC3 1, AC4 6. No AC is uncovered.
 
 **CHECKPOINT 1:** waiting for Bryce.
+
+**Checkpoint 1 outcome:** Bryce replied "continue". I took that as approval of the plan and the comment text, and as accepting my defaults on the open questions: the UTC-today and impossible-date issues stay as documented gaps (I'll ask again at Checkpoint 2 whether to file UTC-today as a bug); login titles use `NO-AC (login)`; the demo page uses the corrected "why TypeScript" line.
+
+```bash
+git push -u origin orchestration-demo        # so the plan link in the comment resolves
+curl -s -o /dev/null -w "%{http_code}\n" https://github.com/brycemiranda/Selenium_pytest/blob/orchestration-demo/e2e/specs/patient-intake.md   # 200
+acli jira workitem comment-create --help     # (the brief's spelling) -> just prints the `workitem` command list: no such subcommand
+acli jira workitem comment create --help
+acli jira workitem comment create --key PIQ-1 --body-file e2e/scripts/piq1-plan-comment.txt   # ✓ Comment on work item PIQ-1 has been successfully added
+acli jira workitem comment list --key PIQ-1  # comment 10000, author Bryce Miranda (acli acts as the logged-in user)
+```
+
+**Docs vs reality, #4:** in acli 1.3.39 the command is `acli jira workitem comment create`, not `comment-create`. The examples in its own `--help` also leave out `create` (`acli jira workitem comment --key ...`).
+
+---
+
+## Phase 3: Generate, run, prove the tests can fail
+
+### Generation (skill §2.2, one scenario per seed session, sequentially)
+
+I scripted the skill's loop so each scenario gets a fresh seed. For each one: start `npx playwright test tests/seed.spec.ts --debug=cli` in the background, `playwright-cli attach tw-…`, `pause-at`, run the scenario's steps, collect the printed code, `resume`, and wait for the seed to exit. Sessions: 1.1 `tw-2e2ec7`, 1.2 `tw-c3c8ab`, 2.1 `tw-0583f0`, 2.2 `tw-90477c`, 3.1 `tw-dd5d3c`, 4.1 `tw-16ffd3`, 5.1 `tw-bbd562`, 5.2 `tw-6916c3`. A representative scenario (2.2), exactly as run:
+
+```bash
+playwright-cli attach tw-90477c
+playwright-cli -s=tw-90477c pause-at seed.spec.ts:7
+playwright-cli -s=tw-90477c run-code "async page => { await page.clock.setFixedTime(new Date('2026-06-15T12:00:00Z')); }"
+playwright-cli -s=tw-90477c --raw eval "new Date().toISOString()"                                # "2026-06-15T12:00:00.000Z"
+playwright-cli -s=tw-90477c fill '[data-test-id="intake-name"]' 'Eli Tomorrow'                   # await page.locator('[data-test-id="intake-name"]').fill('Eli Tomorrow');
+playwright-cli -s=tw-90477c fill '[data-test-id="intake-dob"]' '2026-06-16'
+playwright-cli -s=tw-90477c click '[data-test-id="intake-save"]'
+playwright-cli -s=tw-90477c --raw eval "el => el.checkVisibility()" '[data-test-id="intake-error"]'   # true
+playwright-cli -s=tw-90477c --raw eval "el => el.textContent" '[data-test-id="intake-error"]'         # "Date of birth cannot be in the future."
+playwright-cli -s=tw-90477c --raw eval "document.querySelectorAll('[data-test-id=patient-row]').length"  # 0
+```
+
+Each `--raw eval` result became an assertion: `checkVisibility()` true becomes `toBeVisible()`, `textContent` becomes `toHaveText(...)`, and the row count becomes `toHaveCount(...)`.
+
+**Mistake (mine):** for the login scenarios I first used `pause-at fixtures.ts:73` (the line `await logIn(page)`). It didn't pause; the seed ran to the end. Probing showed that `pause-at` only stops on Playwright API calls, not on calls to my own helpers. `pause-at fixtures.ts:33` (the first `fill` in `logIn`) worked. After the login-valid exploration the seed run then "failed": the fixture's own `fill` on the username field timed out because I had already logged in by hand. That's a side effect of exploring, not a test problem (log: `Test timeout of 30000ms exceeded while setting up "loggedInPage"`).
+
+**My own script bugs:** my output filter first dropped bare `true`/`false`/number results from `--raw eval`. I fixed the regex and reran the affected scenarios.
+
+Test files (`e2e/tests/`): `allergies/ac1-penicillin-shown-for-that-patient`, `allergies/ac1-multiple-allergies-kept-verbatim`, `dob/ac2-far-future-dob-rejected`, `dob/ac2-tomorrow-rejected`, `dob/ac3-today-accepted`, `dob/ac4-invalid-dob-format-rejected` (6 tests), `login/login-valid-credentials-shows-intake`, `login/login-wrong-password-shows-error`.
+Checked against the requirements: `getByTestId` only (plus `[data-field=…]` cells inside a row, which have no test id); web-first `expect` only; no `waitForTimeout`, no `networkidle`; every error message is asserted `toBeVisible()` before `toHaveText()`; titles start with the AC id.
+
+### Runs
+
+```bash
+npx tsc --noEmit                                         # ok
+PLAYWRIGHT_HTML_OPEN=never npx playwright test           # 14 passed. No healing needed: nothing failed on the clean app.
+BUGS=allergy PLAYWRIGHT_HTML_OPEN=never npx playwright test   # 2 failed (both AC1), 12 passed
+BUGS=dob     PLAYWRIGHT_HTML_OPEN=never npx playwright test   # 2 failed (both AC2), 12 passed
+```
+
+Failure reasons were checked, not just counts. `allergy`: `toHaveText` expected "Penicillin" / "Penicillin, Sulfa drugs", received "". `dob`: `toBeVisible()` on `intake-error`, received hidden. No test passed under the bug it should catch, so no test needed strengthening.
+
+On visible-before-text: under `dob` a text-only check would *also* have failed here, because the error was never shown, so its text is still "". The visibility check matters in a different case. `app.js` hides the error on a successful save but doesn't clear its text, so after a rejected save followed by a good one, a hidden element still holds the old message. A text-only assertion would pass on it.
+
+### Flakiness record (3 × 3 runs, `retries: 0`)
+
+```bash
+for b in clean allergy dob; do for i in 1 2 3; do
+  BUGS=$([ $b = clean ] || echo $b) PLAYWRIGHT_JSON_OUTPUT_NAME=runs/$b-$i.json npx playwright test --reporter=json
+done; done
+```
+
+| Run | 1 | 2 | 3 |
+|---|---|---|---|
+| clean | 14 P / 0 F | 14 P / 0 F | 14 P / 0 F |
+| allergy | 12 P / 2 F | 12 P / 2 F | 12 P / 2 F |
+| dob | 12 P / 2 F | 12 P / 2 F | 12 P / 2 F |
+
+| Test | clean | allergy | dob |
+|---|---|---|---|
+| AC1 multiple allergies are kept verbatim | PPP | FFF | PPP |
+| AC1 Penicillin is shown for that patient | PPP | FFF | PPP |
+| AC2 far-future date of birth is rejected and not saved | PPP | PPP | FFF |
+| AC2 tomorrow is rejected and not saved | PPP | PPP | FFF |
+| AC3 today is accepted as a date of birth | PPP | PPP | PPP |
+| AC4 × 6 formats | PPP each | PPP each | PPP each |
+| NO-AC (login) × 2 | PPP each | PPP each | PPP each |
+| seed | PPP | PPP | PPP |
+
+0 flaky across 126 test executions. That's a small sample: 3 runs from one machine against the live site.
