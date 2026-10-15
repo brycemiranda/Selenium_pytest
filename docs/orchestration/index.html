@@ -73,8 +73,8 @@
       An end-to-end QA run on a small demo app, driven by an AI coding agent from the terminal.
       Claude Code read a Jira story, explored the live app and wrote a test plan from it.
       It then generated Playwright tests, ran them against the clean app and against two deliberately injected bugs, filed the defects in Jira with evidence, and published the HTML reports with traces on this site.
-      The story's acceptance criteria were drafted with Claude, then reviewed and approved by Bryce Miranda.
-      Bryce reviewed the plan, the bug drafts and the pull request at three checkpoints before anything was posted to Jira or merged.
+      The story's acceptance criteria were drafted with Claude, then reviewed and approved by me.
+      I reviewed the plan, the bug drafts and the pull request at three checkpoints before anything was posted to Jira or merged.
       Along the way the tests also found a real bug that nobody planted (see <a href="#found">What the tests found</a>).
     </p>
   </section>
@@ -175,19 +175,19 @@
     <h3>Claude Code's own mistakes</h3>
     <ul class="tight">
       <li><strong>The bug-filing script grabbed the wrong Jira key.</strong> It read the new key from the first "PIQ-n" in acli's create output, which echoes the description and its mention of PIQ-1. Caught by the script's own read-back ("Story, wanted Bug") and Jira refusing to link PIQ-1 to itself. PIQ-1 was not changed. Fixed by looking the bug up by its exact summary.</li>
-      <li><strong>A "no writes" check wrote to Jira.</strong> Rerunning the script to show it was idempotent posted a duplicate comment on PIQ-1, because acli's link-list JSON leaves out the linked key, so the "already linked" check failed. Caught by listing the comments. The duplicate was deleted with Bryce's approval, the script now reads links from the issue itself, and reruns are checked with <code>DRY_RUN=1</code> first.</li>
+      <li><strong>A "no writes" check wrote to Jira.</strong> Rerunning the script to show it was idempotent posted a duplicate comment on PIQ-1, because acli's link-list JSON leaves out the linked key, so the "already linked" check failed. Caught by listing the comments. The duplicate was deleted with my approval, the script now reads links from the issue itself, and reruns are checked with <code>DRY_RUN=1</code> first.</li>
       <li><strong>Wrong Node version, twice.</strong> <code>playwright-cli</code> was first installed under Node 16 because nvm's old default was still on PATH, and one later command ran without switching. Both caught by running the command and reading the error.</li>
       <li><strong><code>pause-at</code> on a helper line</strong> didn't pause the debug run. It only stops on Playwright API calls. Caught because the session ended with nothing explored.</li>
       <li><strong>A claim logged before it was run</strong> (a hidden error element keeps its old text), based on reading the code. It was then verified in the browser before moving on.</li>
-      <li><strong>Suggested link type rejected:</strong> the agent proposed "Blocks". Bryce chose "Relates", because the clean app meets every AC and the defects only exist with a toggle on.</li>
+      <li><strong>Suggested link type rejected:</strong> the agent proposed "Blocks". I chose "Relates", because the clean app meets every AC and the defects only exist with a toggle on.</li>
     </ul>
     <h3>Corrections to the brief and the tool docs, caught by checking</h3>
     <ul class="tight">
-      <li>The brief said <code>acli jira workitem comment-create</code>. In acli 1.3.39 that command doesn't exist; it's <code>acli jira workitem comment create</code>, found from <code>--help</code>.</li>
-      <li>The brief said "after 20:00" in New York. That's true under EDT. Under EST (winter) the window starts at 19:00.</li>
-      <li>The brief cited Playwright issue <a href="https://github.com/microsoft/playwright/issues/38610">#38610</a> as an open request for Python test agents. GitHub shows it closed as completed on 2026-08-11 by <a href="https://github.com/microsoft/playwright/pull/42165">PR #42165</a>. A later outside check reported it as still open; the API and the issue page were checked again and both show it closed. TypeScript was kept because the installed skill doesn't cover Python yet.</li>
-      <li>The brief's credit line said "requirement … by Bryce Miranda". The acceptance criteria were drafted with Claude and approved by Bryce, so the line now says "requirement approval".</li>
-      <li>The <code>playwright-cli</code> skill docs: after <code>attach</code>, commands need <code>-s=&lt;session&gt;</code>; "resume, then explore" closes the browser (<code>pause-at</code> works); the CLI's <code>getByTestId</code> ignores the project's <code>data-test-id</code> setting. The skill also suggests <code>test.fixme</code> for confirmed bugs, which this run's rules forbid.</li>
+      <li>My brief said <code>acli jira workitem comment-create</code>. In acli 1.3.39 that command doesn't exist; it's <code>acli jira workitem comment create</code>, found from <code>--help</code>.</li>
+      <li>My brief said "after 20:00" in New York. That's true under EDT. Under EST (winter) the window starts at 19:00.</li>
+      <li>My brief cited Playwright issue <a href="https://github.com/microsoft/playwright/issues/38610">#38610</a> as an open request for Python test agents. GitHub shows it closed as completed on 2026-08-11 by <a href="https://github.com/microsoft/playwright/pull/42165">PR #42165</a>. A later outside check reported it as still open; the API and the issue page were checked again and both show it closed. TypeScript was kept because the installed skill doesn't cover Python yet.</li>
+      <li>My brief's credit line said "requirement … by Bryce Miranda". The acceptance criteria were drafted with Claude and approved by me, so the line now says "requirement approval".</li>
+      <li>The <code>playwright-cli</code> skill docs: after <code>attach</code>, commands need <code>-s=&lt;session&gt;</code>; "resume, then explore" closes the browser (<code>pause-at</code> works); the CLI's <code>getByTestId</code> ignores the project's <code>data-test-id</code> setting. The skill also suggests <code>test.fixme</code> for confirmed bugs, which my rules for this run forbid.</li>
       <li>acli's own <code>--help</code>: the <code>comment delete</code> example uses <code>--issue</code> but the flag is <code>--key</code>. Priority isn't a flag, but <code>additionalAttributes</code> in <code>--from-json</code> sets it.</li>
     </ul>
   </section>
