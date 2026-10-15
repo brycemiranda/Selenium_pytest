@@ -145,10 +145,23 @@ failed Playwright test (`test-results/`).
 
 ## Project notes
 
-**What I built.** A static patient-intake app for a fictional clinic (fake data only), a
-5-test Selenium + pytest suite (Page Object Model, explicit waits, `data-test-id` locators),
-two injectable bugs (`?bugs=allergy,dob` / `--bugs=`), and a CI matrix that proves the suite
-catches each bug on every push.
+**What I built**
+- A static patient-intake app for a fictional clinic (fake data only), with two injectable bugs
+  (`?bugs=allergy,dob`), live on GitHub Pages with one-click links for each bug.
+- A 5-test Selenium + pytest suite (Page Object Model, explicit waits, `data-test-id` locators)
+  and a CI matrix that passes a bug job only if exactly the tests meant to catch that bug fail.
+- Playwright versions of the allergy and DOB tests, kept next to the Selenium ones and checked
+  by the same CI matrix, plus a measured comparison (see "Selenium vs Playwright").
+- A [Claude Code orchestration demo](https://brycemiranda.github.io/Selenium_pytest/orchestration/)
+  (`e2e/`): Jira story → test plan → 16 Playwright tests → runs on the clean app and on each bug →
+  Jira bugs with evidence and published traces.
+
+**Who did what.** I built the first Selenium suite and CI with Claude as a guide. For the
+Playwright port, the CI changes and most of this README, Claude wrote the code and text and I ran,
+reviewed and verified it. The orchestration demo was done by Claude Code: I set the rules,
+approved the acceptance criteria, the test plan, the bug drafts and the pull request, and checked
+the results. What the AI got wrong, and how it was caught, is in
+[ORCHESTRATION_LOG.md](ORCHESTRATION_LOG.md) and on the demo page.
 
 **What each test catches**
 
@@ -159,19 +172,41 @@ catches each bug on every push.
 | `test_saved_patient_appears_in_list` | a saved patient missing from the list |
 | `test_allergies_preserved_after_save` | `allergy` bug: allergies silently dropped on save |
 | `test_future_dob_is_rejected` | `dob` bug: a future date of birth accepted |
+| `test_pw_allergies_preserved_after_save` | `allergy` bug (Playwright) |
+| `test_pw_future_dob_is_rejected` | `dob` bug, and an error message that is set but never shown (Playwright) |
+
+The 16 TypeScript tests in `e2e/` are mapped to acceptance criteria in `e2e/specs/patient-intake.md`.
 
 **What I learned**
 - Under the allergy bug, the "patient appears in list" test still passes. Only a test that
   checks the stored value catches it, and an empty allergy field reads as "no known allergies".
 - An "expected failure" has to be specific. Inverting the exit code would turn a crashed
-  browser green. My dob test fails on a wait timeout, not an assertion, so the check matches by
-  test name, not by exception type.
+  browser green, so CI matches the exact set of failed tests.
 - I tested the checker itself with a deliberately wrong expectation, to prove it can say no.
-- An invalid workflow file fails with no duration: nothing ran at all. Reading the file with
-  line numbers found a step indented under `strategy:`.
+- A port has to keep the checks that were implicit. My Selenium helper waits for the error to be
+  *visible*; the first Playwright port only checked its *text*, and passed when I broke the app so
+  the message was set but never shown. Breaking the app on purpose found it.
+- Measure before explaining. About half the Selenium vs Playwright speed gap was my own setup (a
+  new browser per test), the other half the test steps.
+- Generated tests describe what the code does, not what it should do. Playwright codegen,
+  recorded with the DOB bug on, wrote an assertion that the bad record was saved.
+- "Whose today?" is a real bug class. The app computes today's date in UTC, so the demo's tests
+  found that a newborn can be rejected on its birth day in time zones ahead of UTC, and that
+  tomorrow's date is accepted in US evenings. Filed as a bug and covered by a test marked
+  `test.fail()`, which flags the day it's fixed.
+- Ask for the primary source. Two AI assistants disagreed about a GitHub issue's status; the API
+  record settled it, and the one I had trusted was wrong.
+- Anything that writes to a shared system has to be safe to rerun: a "check" rerun of the Jira
+  filing script posted a duplicate comment.
 
 **What's next**
-- Make the bug jobs check *why* the expected test failed (the assertion text or wait message),
-  not just *which* test failed.
+- An API layer: a small Flask patients API with the same validation, pytest API tests and a
+  Postman collection.
+- Gate the Pages deploy on the tests (an Actions deploy that `needs:` them), and run the `e2e/`
+  suite in CI against a local copy of the app.
+- Make the bug jobs check *why* the expected test failed, not just *which* test failed.
+- Ask whether impossible dates (`2026-02-30` is accepted) should be rejected; no acceptance
+  criterion covers them yet.
 - Write the same future-date-of-birth validation test in ObjectScript with `%UnitTest` on
-  InterSystems IRIS Community Edition.
+  InterSystems IRIS Community Edition, and pin down which "today" it uses (`$HOROLOG` is local
+  time, `$ZTIMESTAMP` is UTC).
